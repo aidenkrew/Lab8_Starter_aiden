@@ -20,7 +20,6 @@ self.addEventListener('activate', function (event) {
 });
 
 // Intercept fetch requests and cache them
-self.addEventListener('fetch', function (event) {
   // We added some known URLs to the cache above, but tracking down every
   // subsequent network request URL and adding it manually would be very taxing.
   // We will be adding all of the resources not specified in the intiial cache
@@ -32,9 +31,24 @@ self.addEventListener('fetch', function (event) {
   //       fetch(event.request)
   // https://developer.chrome.com/docs/workbox/caching-strategies-overview/
   /*******************************/
-  // B7. TODO - Respond to the event by opening the cache using the name we gave
-  //            above (CACHE_NAME)
-  // B8. TODO - If the request is in the cache, return with the cached version.
-  //            Otherwise fetch the resource, add it to the cache, and return
-  //            network response.
-});
+  self.addEventListener('fetch', function (event) {
+    event.respondWith(
+      caches.open(CACHE_NAME).then(cache => {
+        return cache.match(event.request).then(cachedResponse => {
+          // B8. Return cached response if found
+          if (cachedResponse) {
+            return cachedResponse;
+          }
+          // Otherwise, fetch from network
+          return fetch(event.request).then(networkResponse => {
+            // Add the fetched response to the cache for future use
+            cache.put(event.request, networkResponse.clone());
+            return networkResponse;
+          }).catch(error => {
+            console.error('Fetch failed; returning offline page instead.', error);
+            throw error;
+          });
+        });
+      })
+    );
+  });
